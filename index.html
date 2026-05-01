@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>FATAL BLOWS</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='%23001427'/><text x='4' y='26' font-size='24'>⚔</text></svg>">
+  <link href="https://fonts.googleapis.com/css2?family=Boldonse&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/phaser/3.60.0/phaser.min.js"></script>
+  </head>
+<body>
+
+<!-- ── Atmospheric scan line overlay ── -->
+<div id="scan-overlay"></div>
+
+<!-- ── Ripple container ── -->
+<div class="ripple-container" id="ripple-container"></div>
+
+<!-- ── Boot / loading veil ── -->
+<div id="boot-veil">
+  <div class="boot-rings">
+    <div class="boot-ring"></div>
+    <div class="boot-ring"></div>
+    <i class="fa-solid fa-skull boot-icon"></i>
+  </div>
+  <div class="boot-logo-wrap">
+    <div class="boot-logo-ghost">FATAL BLOWS</div>
+    <div class="boot-logo" data-text="FATAL BLOWS">FATAL BLOWS</div>
+  </div>
+  <div class="boot-tagline">CHOOSE YOUR FATE</div>
+  <div class="boot-bar-wrap">
+    <div class="boot-bar-fill" id="boot-bar"></div>
+  </div>
+  <div id="boot-status" style="font-family:'Boldonse',sans-serif;font-size:8px;letter-spacing:4px;color:rgba(112,141,129,0.6);margin-top:-10px;">INITIALIZING...</div>
+</div>
+
+<!-- ── Tooltip ── -->
+<div id="nav-tip"></div>
+
+<!-- ── Settings Gear Button (hidden during fight) ── -->
+<div id="settings-btn" title="Settings">
+  <i class="fa-solid fa-gear"></i>
+</div>
+
+<!-- ── Pause Button (fight scene only, top-center) ── -->
+<div id="pause-btn" title="Pause">
+  <i class="fa-solid fa-pause"></i>
+</div>
+
+<!-- ── Pause Modal ── -->
+<div id="pause-overlay">
+  <div id="pause-panel">
+    <span class="panel-corner panel-corner--tl"></span>
+    <span class="panel-corner panel-corner--tr"></span>
+    <span class="panel-corner panel-corner--bl"></span>
+    <span class="panel-corner panel-corner--br"></span>
+    <div id="pause-title"><i class="fa-solid fa-pause" style="margin-right:8px;font-size:13px;"></i>PAUSED</div>
+
+    <!-- Action buttons -->
+    <div class="pause-actions">
+      <button class="pause-action-btn" id="pause-return-btn">
+        <i class="fa-solid fa-play"></i>
+        <span>RESUME</span>
+      </button>
+      <button class="pause-action-btn" id="pause-restart-btn">
+        <i class="fa-solid fa-rotate-right"></i>
+        <span>RESTART</span>
+      </button>
+      <button class="pause-action-btn pause-action-btn--exit" id="pause-exit-btn">
+        <i class="fa-solid fa-door-open"></i>
+        <span>EXIT</span>
+      </button>
+    </div>
+
+    <div class="pause-divider"></div>
+    <div class="pause-settings-title"><i class="fa-solid fa-sliders" style="margin-right:6px;font-size:11px;"></i>SETTINGS</div>
+
+    <div class="s-row">
+      <div class="s-icon-btn" id="pause-btn-soundtrack" title="Mute Soundtrack">
+        <i class="fa-solid fa-music"></i>
+        <div class="s-mute-label">MUTED</div>
+      </div>
+      <div class="s-icon-btn" id="pause-btn-sfx" title="Sound Effects">
+        <i class="fa-solid fa-volume-high"></i>
+        <div class="s-mute-label">MUTED</div>
+      </div>
+      <div class="s-wide-btn" id="pause-btn-control">
+        <i class="fa-solid fa-gamepad"></i><span>CONTROL</span>
+      </div>
+    </div>
+
+    <div class="s-combat-row">
+      <div class="s-combat-toggle on" id="pause-btn-combat">
+        <span class="check"><i class="fa-solid fa-check"></i></span>
+      </div>
+      <div class="s-combat-label">COMBAT<br>EFFECTS</div>
+      <div class="s-color-swatches">
+        <div class="s-swatch pause-swatch active" style="background:#f4d58d;" data-color="sand"></div>
+        <div class="s-swatch pause-swatch" style="background:#bf0603;" data-color="red"></div>
+        <div class="s-swatch pause-swatch" style="background:#8d0801;" data-color="wine"></div>
+        <div class="s-swatch pause-swatch" style="background:#708d81;" data-color="sage"></div>
+        <div class="s-swatch pause-swatch s-swatch--navy" style="background:#001427;" data-color="navy"></div>
+      </div>
+    </div>
+
+    <div class="s-zoom-row">
+      <div class="s-zoom-label" id="pause-zoom-label">ZOOM: 0.60</div>
+      <input type="range" class="s-zoom-slider" id="pause-zoom-slider" min="20" max="100" value="60">
+    </div>
+
+    <div class="s-bottom-row">
+      <div class="s-voiceover-btn on" id="pause-btn-voiceover" style="flex:1;">
+        <div class="s-voiceover-check"><i class="fa-solid fa-check" style="font-size:11px;"></i></div>
+        <span>NAME<br>VOICEOVER</span>
+      </div>
+    </div>
+
+    <div id="pause-version"><i class="fa-solid fa-code" style="margin-right:5px;opacity:0.5;"></i>v0.1.0  ·  PHASER 3</div>
+  </div>
+</div>
+
+<!-- ── Settings Modal ── -->
+<div id="settings-overlay">
+  <div id="settings-panel">
+    <span class="panel-corner panel-corner--tl"></span>
+    <span class="panel-corner panel-corner--tr"></span>
+    <span class="panel-corner panel-corner--bl"></span>
+    <span class="panel-corner panel-corner--br"></span>
+    <div id="settings-title"><i class="fa-solid fa-sliders" style="margin-right:8px;font-size:13px;"></i>SETTINGS</div>
+    <button id="settings-close"><i class="fa-solid fa-xmark"></i></button>
+
+    <!-- Row 1: Audio + Control -->
+    <div class="s-row">
+      <div class="s-icon-btn" id="btn-soundtrack" title="Mute Soundtrack">
+        <i class="fa-solid fa-music"></i>
+        <div class="s-mute-label">MUTED</div>
+      </div>
+      <div class="s-icon-btn" id="btn-sfx" title="Sound Effects">
+        <i class="fa-solid fa-volume-high"></i>
+        <div class="s-mute-label">MUTED</div>
+      </div>
+      <div class="s-wide-btn" id="btn-control">
+        <i class="fa-solid fa-gamepad"></i><span>CONTROL</span>
+      </div>
+    </div>
+
+    <!-- Row 2: Combat Effects + Swatches -->
+    <div class="s-combat-row">
+      <div class="s-combat-toggle on" id="btn-combat">
+        <span class="check"><i class="fa-solid fa-check"></i></span>
+      </div>
+      <div class="s-combat-label">COMBAT<br>EFFECTS</div>
+      <div class="s-color-swatches">
+        <div class="s-swatch active" style="background:#f4d58d;" data-color="sand"></div>
+        <div class="s-swatch" style="background:#bf0603;" data-color="red"></div>
+        <div class="s-swatch" style="background:#8d0801;" data-color="wine"></div>
+        <div class="s-swatch" style="background:#708d81;" data-color="sage"></div>
+        <div class="s-swatch s-swatch--navy" style="background:#001427;" data-color="navy"></div>
+      </div>
+    </div>
+
+    <!-- Row 3: Zoom slider -->
+    <div class="s-zoom-row">
+      <div class="s-zoom-label" id="zoom-label">ZOOM: 0.60</div>
+      <input type="range" class="s-zoom-slider" id="zoom-slider" min="20" max="100" value="60">
+    </div>
+
+    <!-- Row 4: Demo + Voiceover -->
+    <div class="s-bottom-row">
+      <button class="s-demo-btn"><i class="fa-solid fa-play" style="margin-right:6px;font-size:12px;"></i>DEMO</button>
+      <div class="s-voiceover-btn on" id="btn-voiceover">
+        <div class="s-voiceover-check"><i class="fa-solid fa-check" style="font-size:11px;"></i></div>
+        <span>NAME<br>VOICEOVER</span>
+      </div>
+    </div>
+
+    <div id="settings-version"><i class="fa-solid fa-code" style="margin-right:5px;opacity:0.5;"></i>v0.1.0  ·  PHASER 3</div>
+  </div>
+</div>
+
+<!-- ── Mobile On-Screen Controls ── -->
+<div id="mobile-controls">
+  <div id="dpad-zone">
+    <div class="dpad-btn" id="dpad-jump">JUMP</div>
+    <div class="dpad-btn" id="dpad-left">◄</div>
+    <div class="dpad-btn" id="dpad-right">►</div>
+  </div>
+  <div id="action-zone">
+    <div class="action-btn" id="btn-shoot">
+      <span class="btn-label">SHOT</span>
+    </div>
+    <div class="action-btn" id="btn-atk2">
+      <span class="btn-key">X</span>
+    </div>
+    <div class="action-btn" id="btn-atk1">
+      <span class="btn-key">Z</span>
+    </div>
+  </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
