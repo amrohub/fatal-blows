@@ -513,10 +513,6 @@ const Audio = {
 
 // ═══════════════════════════════════════════════
 //  SFX ENGINE  — Web Audio API synthesized sounds
-//  Fully realistic combat sound design:
-//  gunshot, sword slash (heavy/fast/stab), sword impact,
-//  fireball cast, flame jet, lightning charge, lightning strike,
-//  body hit, hurt (light/heavy), death, reload, jump, land, footstep
 // ═══════════════════════════════════════════════
 const SFX = (() => {
   let ctx = null;
@@ -533,20 +529,7 @@ const SFX = (() => {
     try { fn(getCtx()); } catch(e) {}
   }
 
-  // ── Noise buffer helper ──────────────────────
-  function makeNoise(ctx, duration, shape) {
-    const len  = Math.ceil(ctx.sampleRate * duration);
-    const buf  = ctx.createBuffer(1, len, ctx.sampleRate);
-    const data = buf.getChannelData(0);
-    for (let i = 0; i < len; i++) {
-      const t = i / len;
-      data[i] = (Math.random() * 2 - 1) * (shape ? shape(t) : 1);
-    }
-    return buf;
-  }
-
-  // ── UI SOUNDS ───────────────────────────────
-
+  // soft metallic tick on hover
   function hover() {
     play(ctx => {
       const osc = ctx.createOscillator();
@@ -555,79 +538,108 @@ const SFX = (() => {
       osc.type = 'sine';
       osc.frequency.setValueAtTime(900, ctx.currentTime);
       osc.frequency.exponentialRampToValueAtTime(600, ctx.currentTime + 0.06);
-      gain.gain.setValueAtTime(0.10, ctx.currentTime);
+      gain.gain.setValueAtTime(0.12, ctx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
-      osc.start(); osc.stop(ctx.currentTime + 0.09);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.09);
     });
   }
 
+  // sharp metallic blade-draw on card click
   function select() {
     play(ctx => {
+      // metallic ring: two high-freq sine partials that fade slowly
       [1040, 1560, 2200].forEach((freq, idx) => {
-        const osc = ctx.createOscillator(); const gain = ctx.createGain();
+        const osc  = ctx.createOscillator();
+        const gain = ctx.createGain();
         osc.connect(gain); gain.connect(ctx.destination);
         osc.type = 'sine';
         osc.frequency.setValueAtTime(freq, ctx.currentTime);
         osc.frequency.exponentialRampToValueAtTime(freq * 0.82, ctx.currentTime + 0.28);
-        gain.gain.setValueAtTime(0.12 - idx * 0.025, ctx.currentTime);
+        gain.gain.setValueAtTime(0.13 - idx * 0.025, ctx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.38 + idx * 0.05);
-        osc.start(); osc.stop(ctx.currentTime + 0.44);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.44);
       });
-      const osc2 = ctx.createOscillator(); const gain2 = ctx.createGain();
+      // short transient click (impact body)
+      const osc2  = ctx.createOscillator();
+      const gain2 = ctx.createGain();
       osc2.connect(gain2); gain2.connect(ctx.destination);
       osc2.type = 'triangle';
       osc2.frequency.setValueAtTime(420, ctx.currentTime);
       osc2.frequency.exponentialRampToValueAtTime(60, ctx.currentTime + 0.06);
-      gain2.gain.setValueAtTime(0.25, ctx.currentTime);
+      gain2.gain.setValueAtTime(0.28, ctx.currentTime);
       gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
-      osc2.start(); osc2.stop(ctx.currentTime + 0.09);
+      osc2.start(ctx.currentTime);
+      osc2.stop(ctx.currentTime + 0.09);
+      // thin noise burst (blade hiss)
+      const buf  = ctx.createBuffer(1, ctx.sampleRate * 0.07, ctx.sampleRate);
+      const data = buf.getChannelData(0);
+      for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / data.length, 2.5);
+      const src  = ctx.createBufferSource();
+      const hpf  = ctx.createBiquadFilter(); hpf.type = 'highpass'; hpf.frequency.value = 3200;
+      const g3   = ctx.createGain(); g3.gain.setValueAtTime(0.18, ctx.currentTime);
+      src.buffer = buf;
+      src.connect(hpf); hpf.connect(g3); g3.connect(ctx.destination);
+      src.start(ctx.currentTime);
     });
   }
 
+  // heroic rising chord on map confirm
   function confirm() {
     play(ctx => {
       [220, 330, 440, 550].forEach((freq, i) => {
-        const osc = ctx.createOscillator(); const gain = ctx.createGain();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
         osc.connect(gain); gain.connect(ctx.destination);
         osc.type = 'triangle';
         osc.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.04);
         gain.gain.setValueAtTime(0, ctx.currentTime + i * 0.04);
-        gain.gain.linearRampToValueAtTime(0.12, ctx.currentTime + i * 0.04 + 0.03);
+        gain.gain.linearRampToValueAtTime(0.13, ctx.currentTime + i * 0.04 + 0.03);
         gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.04 + 0.35);
-        osc.start(ctx.currentTime + i * 0.04); osc.stop(ctx.currentTime + i * 0.04 + 0.38);
+        osc.start(ctx.currentTime + i * 0.04);
+        osc.stop(ctx.currentTime + i * 0.04 + 0.38);
       });
     });
   }
 
+  // quick whoosh on nav tab switch
   function nav() {
     play(ctx => {
-      const osc = ctx.createOscillator(); const gain = ctx.createGain();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
       osc.connect(gain); gain.connect(ctx.destination);
       osc.type = 'sine';
       osc.frequency.setValueAtTime(200, ctx.currentTime);
       osc.frequency.exponentialRampToValueAtTime(700, ctx.currentTime + 0.1);
-      gain.gain.setValueAtTime(0.13, ctx.currentTime);
+      gain.gain.setValueAtTime(0.14, ctx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.13);
-      osc.start(); osc.stop(ctx.currentTime + 0.15);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.15);
     });
   }
 
+  // reverse whoosh on back button
   function back() {
     play(ctx => {
-      const osc = ctx.createOscillator(); const gain = ctx.createGain();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
       osc.connect(gain); gain.connect(ctx.destination);
       osc.type = 'sine';
       osc.frequency.setValueAtTime(700, ctx.currentTime);
       osc.frequency.exponentialRampToValueAtTime(180, ctx.currentTime + 0.12);
-      gain.gain.setValueAtTime(0.13, ctx.currentTime);
+      gain.gain.setValueAtTime(0.14, ctx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.14);
-      osc.start(); osc.stop(ctx.currentTime + 0.16);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.16);
     });
   }
 
+  // rising power-up on boot complete
   function boot() {
     play(ctx => {
-      const osc = ctx.createOscillator(); const gain = ctx.createGain();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
       osc.connect(gain); gain.connect(ctx.destination);
       osc.type = 'square';
       osc.frequency.setValueAtTime(110, ctx.currentTime);
@@ -635,598 +647,141 @@ const SFX = (() => {
       gain.gain.setValueAtTime(0.08, ctx.currentTime);
       gain.gain.setValueAtTime(0.08, ctx.currentTime + 0.4);
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.55);
-      osc.start(); osc.stop(ctx.currentTime + 0.6);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.6);
     });
   }
 
+  // deep power-charge energy swell (map confirm hold)
+  function powerUp() {
+    play(ctx => {
+      [110, 165, 220, 330].forEach((freq, i) => {
+        const osc  = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.05);
+        osc.frequency.exponentialRampToValueAtTime(freq * 1.8, ctx.currentTime + 0.55);
+        gain.gain.setValueAtTime(0.0, ctx.currentTime + i * 0.05);
+        gain.gain.linearRampToValueAtTime(0.11, ctx.currentTime + i * 0.05 + 0.1);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.65);
+        osc.start(ctx.currentTime + i * 0.05);
+        osc.stop(ctx.currentTime + 0.7);
+      });
+      // high shimmer
+      const osc2 = ctx.createOscillator();
+      const g2   = ctx.createGain();
+      osc2.connect(g2); g2.connect(ctx.destination);
+      osc2.type = 'sine';
+      osc2.frequency.setValueAtTime(1800, ctx.currentTime);
+      osc2.frequency.exponentialRampToValueAtTime(3600, ctx.currentTime + 0.5);
+      g2.gain.setValueAtTime(0.06, ctx.currentTime);
+      g2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.55);
+      osc2.start(ctx.currentTime);
+      osc2.stop(ctx.currentTime + 0.6);
+    });
+  }
+
+  // heavy impact thud (hit landing)
+  function impact() {
+    play(ctx => {
+      // sub thump
+      const osc  = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(180, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(40, ctx.currentTime + 0.14);
+      gain.gain.setValueAtTime(0.55, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.18);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.2);
+      // noise crack
+      const buf  = ctx.createBuffer(1, ctx.sampleRate * 0.06, ctx.sampleRate);
+      const data = buf.getChannelData(0);
+      for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / data.length, 1.8);
+      const src  = ctx.createBufferSource();
+      const lpf  = ctx.createBiquadFilter(); lpf.type = 'lowpass'; lpf.frequency.value = 2400;
+      const g2   = ctx.createGain(); g2.gain.setValueAtTime(0.35, ctx.currentTime);
+      src.buffer  = buf;
+      src.connect(lpf); lpf.connect(g2); g2.connect(ctx.destination);
+      src.start(ctx.currentTime);
+    });
+  }
+
+  // glassy UI unlock / pickup chime
   function chime() {
     play(ctx => {
       [523, 659, 784, 1047].forEach((freq, i) => {
-        const osc = ctx.createOscillator(); const gain = ctx.createGain();
+        const osc  = ctx.createOscillator();
+        const gain = ctx.createGain();
         osc.connect(gain); gain.connect(ctx.destination);
         osc.type = 'sine';
         osc.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.07);
-        gain.gain.setValueAtTime(0, ctx.currentTime + i * 0.07);
-        gain.gain.linearRampToValueAtTime(0.09, ctx.currentTime + i * 0.07 + 0.015);
+        gain.gain.setValueAtTime(0.0, ctx.currentTime + i * 0.07);
+        gain.gain.linearRampToValueAtTime(0.1, ctx.currentTime + i * 0.07 + 0.015);
         gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.07 + 0.28);
-        osc.start(ctx.currentTime + i * 0.07); osc.stop(ctx.currentTime + i * 0.07 + 0.3);
+        osc.start(ctx.currentTime + i * 0.07);
+        osc.stop(ctx.currentTime + i * 0.07 + 0.3);
       });
     });
   }
 
+  // electric buzz / error / denied
   function error() {
     play(ctx => {
-      const osc = ctx.createOscillator(); const gain = ctx.createGain();
+      const osc  = ctx.createOscillator();
+      const gain = ctx.createGain();
       osc.connect(gain); gain.connect(ctx.destination);
       osc.type = 'square';
       osc.frequency.setValueAtTime(80, ctx.currentTime);
       osc.frequency.setValueAtTime(60, ctx.currentTime + 0.08);
       osc.frequency.setValueAtTime(80, ctx.currentTime + 0.16);
-      gain.gain.setValueAtTime(0.20, ctx.currentTime);
+      gain.gain.setValueAtTime(0.22, ctx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.26);
-      osc.start(); osc.stop(ctx.currentTime + 0.28);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.28);
     });
   }
 
+  // victory fanfare (3-note trumpet-like)
   function victory() {
     play(ctx => {
       const melody = [523, 659, 784, 1047, 784, 1047];
       const timing = [0, 0.12, 0.24, 0.36, 0.52, 0.6];
       melody.forEach((freq, i) => {
-        const osc = ctx.createOscillator(); const gain = ctx.createGain();
+        const osc  = ctx.createOscillator();
+        const gain = ctx.createGain();
         osc.connect(gain); gain.connect(ctx.destination);
         osc.type = 'square';
         osc.frequency.setValueAtTime(freq, ctx.currentTime + timing[i]);
-        gain.gain.setValueAtTime(0, ctx.currentTime + timing[i]);
-        gain.gain.linearRampToValueAtTime(0.13, ctx.currentTime + timing[i] + 0.02);
+        gain.gain.setValueAtTime(0.0, ctx.currentTime + timing[i]);
+        gain.gain.linearRampToValueAtTime(0.14, ctx.currentTime + timing[i] + 0.02);
         gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + timing[i] + 0.11);
-        osc.start(ctx.currentTime + timing[i]); osc.stop(ctx.currentTime + timing[i] + 0.13);
+        osc.start(ctx.currentTime + timing[i]);
+        osc.stop(ctx.currentTime + timing[i] + 0.13);
       });
     });
   }
 
+  // low ambient rumble / tension
   function rumble() {
     play(ctx => {
-      const src = ctx.createBufferSource();
-      src.buffer = makeNoise(ctx, 0.4, t => 0.18 * Math.sin(t * Math.PI));
-      const lpf = ctx.createBiquadFilter(); lpf.type = 'lowpass'; lpf.frequency.value = 160;
-      const gain = ctx.createGain(); gain.gain.setValueAtTime(0.55, ctx.currentTime);
+      const buf  = ctx.createBuffer(1, ctx.sampleRate * 0.4, ctx.sampleRate);
+      const data = buf.getChannelData(0);
+      for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * 0.18 * Math.sin(i / data.length * Math.PI);
+      const src  = ctx.createBufferSource();
+      const lpf  = ctx.createBiquadFilter(); lpf.type = 'lowpass'; lpf.frequency.value = 160;
+      const gain = ctx.createGain(); gain.gain.setValueAtTime(0.6, ctx.currentTime);
+      src.buffer = buf;
       src.connect(lpf); lpf.connect(gain); gain.connect(ctx.destination);
-      src.start();
-    });
-  }
-
-  // ── COMBAT SOUNDS ────────────────────────────
-
-  // ─ GUNSHOT: loud sharp crack + pressure wave + tail ring ─
-  function gunshot() {
-    play(ctx => {
-      const t = ctx.currentTime;
-
-      // 1. Explosive transient crack — short white noise burst through steep HPF
-      const crackSrc = ctx.createBufferSource();
-      crackSrc.buffer = makeNoise(ctx, 0.08, p => Math.pow(1 - p, 2.2));
-      const crackHpf = ctx.createBiquadFilter(); crackHpf.type = 'highpass'; crackHpf.frequency.value = 1800;
-      const crackGain = ctx.createGain();
-      crackGain.gain.setValueAtTime(0.9, t);
-      crackGain.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
-      crackSrc.connect(crackHpf); crackHpf.connect(crackGain); crackGain.connect(ctx.destination);
-      crackSrc.start(t);
-
-      // 2. Low-end pressure thump — body of the shot
-      const thump = ctx.createOscillator();
-      const thumpG = ctx.createGain();
-      thump.connect(thumpG); thumpG.connect(ctx.destination);
-      thump.type = 'sine';
-      thump.frequency.setValueAtTime(220, t);
-      thump.frequency.exponentialRampToValueAtTime(48, t + 0.12);
-      thumpG.gain.setValueAtTime(0.75, t);
-      thumpG.gain.exponentialRampToValueAtTime(0.001, t + 0.16);
-      thump.start(t); thump.stop(t + 0.18);
-
-      // 3. Mid-freq bark — snap of the round
-      const bark = ctx.createOscillator();
-      const barkG = ctx.createGain();
-      bark.connect(barkG); barkG.connect(ctx.destination);
-      bark.type = 'sawtooth';
-      bark.frequency.setValueAtTime(380, t);
-      bark.frequency.exponentialRampToValueAtTime(90, t + 0.04);
-      barkG.gain.setValueAtTime(0.40, t);
-      barkG.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
-      bark.start(t); bark.stop(t + 0.06);
-
-      // 4. Room ring / reverb tail — decaying sine
-      const ring = ctx.createOscillator();
-      const ringG = ctx.createGain();
-      ring.connect(ringG); ringG.connect(ctx.destination);
-      ring.type = 'sine';
-      ring.frequency.setValueAtTime(980, t + 0.03);
-      ring.frequency.exponentialRampToValueAtTime(320, t + 0.55);
-      ringG.gain.setValueAtTime(0.12, t + 0.03);
-      ringG.gain.exponentialRampToValueAtTime(0.001, t + 0.60);
-      ring.start(t + 0.03); ring.stop(t + 0.65);
-
-      // 5. Bullet hiss (air slice after firing)
-      const hissSrc = ctx.createBufferSource();
-      hissSrc.buffer = makeNoise(ctx, 0.15, p => Math.pow(1 - p, 1.5));
-      const hissBpf = ctx.createBiquadFilter(); hissBpf.type = 'bandpass'; hissBpf.frequency.value = 4000; hissBpf.Q.value = 1.2;
-      const hissG = ctx.createGain(); hissG.gain.setValueAtTime(0.22, t + 0.02);
-      hissSrc.connect(hissBpf); hissBpf.connect(hissG); hissG.connect(ctx.destination);
-      hissSrc.start(t + 0.02);
-    });
-  }
-
-  // ─ GUN EMPTY CLICK — dry metallic snap ─
-  function gunEmpty() {
-    play(ctx => {
-      const t = ctx.currentTime;
-      const osc = ctx.createOscillator(); const g = ctx.createGain();
-      osc.connect(g); g.connect(ctx.destination);
-      osc.type = 'square';
-      osc.frequency.setValueAtTime(1800, t);
-      osc.frequency.exponentialRampToValueAtTime(400, t + 0.025);
-      g.gain.setValueAtTime(0.18, t);
-      g.gain.exponentialRampToValueAtTime(0.001, t + 0.04);
-      osc.start(t); osc.stop(t + 0.045);
-    });
-  }
-
-  // ─ GUN RELOAD — mechanical clank + spring + chamber close ─
-  function gunReload() {
-    play(ctx => {
-      const t = ctx.currentTime;
-
-      // Magazine eject thud
-      const ejSrc = ctx.createBufferSource();
-      ejSrc.buffer = makeNoise(ctx, 0.06, p => Math.pow(1 - p, 3));
-      const ejLpf = ctx.createBiquadFilter(); ejLpf.type = 'lowpass'; ejLpf.frequency.value = 900;
-      const ejG = ctx.createGain(); ejG.gain.setValueAtTime(0.45, t);
-      ejSrc.connect(ejLpf); ejLpf.connect(ejG); ejG.connect(ctx.destination);
-      ejSrc.start(t);
-
-      // Metallic spring tension ring
-      const spring = ctx.createOscillator(); const spG = ctx.createGain();
-      spring.connect(spG); spG.connect(ctx.destination);
-      spring.type = 'sine';
-      spring.frequency.setValueAtTime(2400, t + 0.1);
-      spring.frequency.exponentialRampToValueAtTime(800, t + 0.32);
-      spG.gain.setValueAtTime(0.14, t + 0.1);
-      spG.gain.exponentialRampToValueAtTime(0.001, t + 0.38);
-      spring.start(t + 0.1); spring.stop(t + 0.4);
-
-      // Magazine insert clack
-      const clkSrc = ctx.createBufferSource();
-      clkSrc.buffer = makeNoise(ctx, 0.05, p => Math.pow(1 - p, 4));
-      const clkHpf = ctx.createBiquadFilter(); clkHpf.type = 'highpass'; clkHpf.frequency.value = 1400;
-      const clkG = ctx.createGain(); clkG.gain.setValueAtTime(0.55, t + 0.42);
-      clkSrc.connect(clkHpf); clkHpf.connect(clkG); clkG.connect(ctx.destination);
-      clkSrc.start(t + 0.42);
-
-      // Slide/bolt chamber close — rising metallic scrape
-      const bolt = ctx.createOscillator(); const boltG = ctx.createGain();
-      bolt.connect(boltG); boltG.connect(ctx.destination);
-      bolt.type = 'sawtooth';
-      bolt.frequency.setValueAtTime(220, t + 0.55);
-      bolt.frequency.exponentialRampToValueAtTime(1100, t + 0.68);
-      boltG.gain.setValueAtTime(0.18, t + 0.55);
-      boltG.gain.exponentialRampToValueAtTime(0.001, t + 0.72);
-      bolt.start(t + 0.55); bolt.stop(t + 0.74);
-    });
-  }
-
-  // ─ SWORD SLASH — heavy wide swing, raider/samurai attack1 ─
-  function swordSlash() {
-    play(ctx => {
-      const t = ctx.currentTime;
-
-      // Blade whoosh — sharp air displacement
-      const whooshSrc = ctx.createBufferSource();
-      whooshSrc.buffer = makeNoise(ctx, 0.20, p => {
-        const env = p < 0.15 ? p / 0.15 : Math.pow(1 - (p - 0.15) / 0.85, 1.4);
-        return env;
-      });
-      const whooshHpf = ctx.createBiquadFilter(); whooshHpf.type = 'highpass'; whooshHpf.frequency.value = 1200;
-      const whooshBpf = ctx.createBiquadFilter(); whooshBpf.type = 'bandpass'; whooshBpf.frequency.value = 3500; whooshBpf.Q.value = 0.8;
-      const whooshG = ctx.createGain(); whooshG.gain.setValueAtTime(0.55, t);
-      whooshSrc.connect(whooshHpf); whooshHpf.connect(whooshBpf); whooshBpf.connect(whooshG); whooshG.connect(ctx.destination);
-      whooshSrc.start(t);
-
-      // Metallic blade ring — high partial harmonics
-      [1800, 2800, 4200].forEach((freq, i) => {
-        const osc = ctx.createOscillator(); const g = ctx.createGain();
-        osc.connect(g); g.connect(ctx.destination);
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(freq * 1.1, t);
-        osc.frequency.exponentialRampToValueAtTime(freq * 0.75, t + 0.22);
-        g.gain.setValueAtTime(0.10 - i * 0.025, t);
-        g.gain.exponentialRampToValueAtTime(0.001, t + 0.28 + i * 0.04);
-        osc.start(t); osc.stop(t + 0.34);
-      });
-
-      // Impact body — thud of blade impact at end of swing
-      const impOsc = ctx.createOscillator(); const impG = ctx.createGain();
-      impOsc.connect(impG); impG.connect(ctx.destination);
-      impOsc.type = 'triangle';
-      impOsc.frequency.setValueAtTime(280, t + 0.14);
-      impOsc.frequency.exponentialRampToValueAtTime(55, t + 0.22);
-      impG.gain.setValueAtTime(0.38, t + 0.14);
-      impG.gain.exponentialRampToValueAtTime(0.001, t + 0.24);
-      impOsc.start(t + 0.14); impOsc.stop(t + 0.26);
-    });
-  }
-
-  // ─ SWORD FAST SLASH — quick light strike, attack2 ─
-  function swordFast() {
-    play(ctx => {
-      const t = ctx.currentTime;
-
-      // Crisp short whoosh
-      const wSrc = ctx.createBufferSource();
-      wSrc.buffer = makeNoise(ctx, 0.10, p => Math.pow(1 - p, 1.6));
-      const wHpf = ctx.createBiquadFilter(); wHpf.type = 'highpass'; wHpf.frequency.value = 2200;
-      const wG = ctx.createGain(); wG.gain.setValueAtTime(0.45, t);
-      wSrc.connect(wHpf); wHpf.connect(wG); wG.connect(ctx.destination);
-      wSrc.start(t);
-
-      // Sharp ring-off
-      [2400, 3800].forEach((freq, i) => {
-        const osc = ctx.createOscillator(); const g = ctx.createGain();
-        osc.connect(g); g.connect(ctx.destination);
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(freq, t);
-        osc.frequency.exponentialRampToValueAtTime(freq * 0.70, t + 0.14);
-        g.gain.setValueAtTime(0.10 - i * 0.03, t);
-        g.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
-        osc.start(t); osc.stop(t + 0.20);
-      });
-    });
-  }
-
-  // ─ SWORD IMPACT — blade hitting flesh/armour ─
-  function swordImpact() {
-    play(ctx => {
-      const t = ctx.currentTime;
-
-      // Meaty thud
-      const osc = ctx.createOscillator(); const g = ctx.createGain();
-      osc.connect(g); g.connect(ctx.destination);
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(160, t);
-      osc.frequency.exponentialRampToValueAtTime(38, t + 0.10);
-      g.gain.setValueAtTime(0.65, t);
-      g.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
-      osc.start(t); osc.stop(t + 0.16);
-
-      // Flesh/cloth crunch noise
-      const nSrc = ctx.createBufferSource();
-      nSrc.buffer = makeNoise(ctx, 0.07, p => Math.pow(1 - p, 2.8));
-      const nLpf = ctx.createBiquadFilter(); nLpf.type = 'lowpass'; nLpf.frequency.value = 1600;
-      const nG = ctx.createGain(); nG.gain.setValueAtTime(0.40, t);
-      nSrc.connect(nLpf); nLpf.connect(nG); nG.connect(ctx.destination);
-      nSrc.start(t);
-
-      // Metallic ringing from blade resonance
-      const ring = ctx.createOscillator(); const rG = ctx.createGain();
-      ring.connect(rG); rG.connect(ctx.destination);
-      ring.type = 'sine';
-      ring.frequency.setValueAtTime(1400, t + 0.01);
-      ring.frequency.exponentialRampToValueAtTime(700, t + 0.18);
-      rG.gain.setValueAtTime(0.14, t + 0.01);
-      rG.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
-      ring.start(t + 0.01); ring.stop(t + 0.24);
-    });
-  }
-
-  // ─ FIREBALL CAST — magical fire launch, wizard attack ─
-  function fireballCast() {
-    play(ctx => {
-      const t = ctx.currentTime;
-
-      // Ignition whomp — low freq swell
-      const osc = ctx.createOscillator(); const g = ctx.createGain();
-      osc.connect(g); g.connect(ctx.destination);
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(55, t);
-      osc.frequency.exponentialRampToValueAtTime(180, t + 0.12);
-      osc.frequency.exponentialRampToValueAtTime(80, t + 0.35);
-      g.gain.setValueAtTime(0, t);
-      g.gain.linearRampToValueAtTime(0.38, t + 0.06);
-      g.gain.exponentialRampToValueAtTime(0.001, t + 0.40);
-      osc.start(t); osc.stop(t + 0.42);
-
-      // Crackle noise — fire texture
-      const fSrc = ctx.createBufferSource();
-      fSrc.buffer = makeNoise(ctx, 0.30, p => Math.pow(1 - p, 1.0) * (0.5 + 0.5 * Math.random()));
-      const fBpf = ctx.createBiquadFilter(); fBpf.type = 'bandpass'; fBpf.frequency.value = 1200; fBpf.Q.value = 0.6;
-      const fG = ctx.createGain(); fG.gain.setValueAtTime(0.28, t);
-      fSrc.connect(fBpf); fBpf.connect(fG); fG.connect(ctx.destination);
-      fSrc.start(t);
-
-      // High shimmer — magical sparkle
-      [2200, 3300, 4800].forEach((freq, i) => {
-        const osc2 = ctx.createOscillator(); const g2 = ctx.createGain();
-        osc2.connect(g2); g2.connect(ctx.destination);
-        osc2.type = 'sine';
-        osc2.frequency.setValueAtTime(freq, t + i * 0.03);
-        g2.gain.setValueAtTime(0.07, t + i * 0.03);
-        g2.gain.exponentialRampToValueAtTime(0.001, t + 0.20 + i * 0.04);
-        osc2.start(t + i * 0.03); osc2.stop(t + 0.24 + i * 0.04);
-      });
-    });
-  }
-
-  // ─ FLAME JET — sustained fire stream, wizard attack2 ─
-  function flameJet() {
-    play(ctx => {
-      const t = ctx.currentTime;
-
-      // Sustained roar noise
-      const rSrc = ctx.createBufferSource();
-      rSrc.buffer = makeNoise(ctx, 0.55, p => {
-        const env = p < 0.08 ? p / 0.08 : p > 0.85 ? (1 - p) / 0.15 : 1.0;
-        return env * (0.7 + 0.3 * Math.random());
-      });
-      const rLpf = ctx.createBiquadFilter(); rLpf.type = 'lowpass'; rLpf.frequency.value = 2200;
-      const rG = ctx.createGain(); rG.gain.setValueAtTime(0.48, t);
-      rSrc.connect(rLpf); rLpf.connect(rG); rG.connect(ctx.destination);
-      rSrc.start(t);
-
-      // Low freq growl oscillator
-      const growl = ctx.createOscillator(); const growlG = ctx.createGain();
-      growl.connect(growlG); growlG.connect(ctx.destination);
-      growl.type = 'sawtooth';
-      growl.frequency.setValueAtTime(80, t);
-      growl.frequency.setValueAtTime(60, t + 0.2);
-      growl.frequency.setValueAtTime(90, t + 0.4);
-      growlG.gain.setValueAtTime(0, t);
-      growlG.gain.linearRampToValueAtTime(0.22, t + 0.1);
-      growlG.gain.exponentialRampToValueAtTime(0.001, t + 0.58);
-      growl.start(t); growl.stop(t + 0.6);
-    });
-  }
-
-  // ─ LIGHTNING CHARGE — building electrical tension ─
-  function lightningCharge() {
-    play(ctx => {
-      const t = ctx.currentTime;
-
-      // Rising buzz — electrical build-up
-      const osc = ctx.createOscillator(); const g = ctx.createGain();
-      osc.connect(g); g.connect(ctx.destination);
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(80, t);
-      osc.frequency.exponentialRampToValueAtTime(1400, t + 0.55);
-      g.gain.setValueAtTime(0, t);
-      g.gain.linearRampToValueAtTime(0.24, t + 0.1);
-      g.gain.exponentialRampToValueAtTime(0.001, t + 0.60);
-      osc.start(t); osc.stop(t + 0.62);
-
-      // Crackle noise — static electricity
-      const cSrc = ctx.createBufferSource();
-      cSrc.buffer = makeNoise(ctx, 0.55, p => p * (0.6 + 0.4 * Math.random()));
-      const cHpf = ctx.createBiquadFilter(); cHpf.type = 'highpass'; cHpf.frequency.value = 3000;
-      const cG = ctx.createGain(); cG.gain.setValueAtTime(0.15, t);
-      cSrc.connect(cHpf); cHpf.connect(cG); cG.connect(ctx.destination);
-      cSrc.start(t);
-    });
-  }
-
-  // ─ LIGHTNING STRIKE — crack of discharge, lmage attack ─
-  function lightningStrike() {
-    play(ctx => {
-      const t = ctx.currentTime;
-
-      // Instantaneous crack — the strike
-      const crackSrc = ctx.createBufferSource();
-      crackSrc.buffer = makeNoise(ctx, 0.05, p => Math.pow(1 - p, 1.2));
-      const crackHpf = ctx.createBiquadFilter(); crackHpf.type = 'highpass'; crackHpf.frequency.value = 4000;
-      const crackG = ctx.createGain(); crackG.gain.setValueAtTime(1.0, t);
-      crackSrc.connect(crackHpf); crackHpf.connect(crackG); crackG.connect(ctx.destination);
-      crackSrc.start(t);
-
-      // Thunder rumble tail
-      const rSrc = ctx.createBufferSource();
-      rSrc.buffer = makeNoise(ctx, 0.50, p => Math.pow(1 - p, 0.7) * (0.5 + 0.5 * Math.random()));
-      const rLpf = ctx.createBiquadFilter(); rLpf.type = 'lowpass'; rLpf.frequency.value = 350;
-      const rG = ctx.createGain(); rG.gain.setValueAtTime(0.55, t + 0.01);
-      rSrc.connect(rLpf); rLpf.connect(rG); rG.connect(ctx.destination);
-      rSrc.start(t + 0.01);
-
-      // Electric sizzle
-      const sizzSrc = ctx.createBufferSource();
-      sizzSrc.buffer = makeNoise(ctx, 0.30, p => Math.pow(1 - p, 1.8));
-      const sizzBpf = ctx.createBiquadFilter(); sizzBpf.type = 'bandpass'; sizzBpf.frequency.value = 5000; sizzBpf.Q.value = 1.5;
-      const sizzG = ctx.createGain(); sizzG.gain.setValueAtTime(0.35, t);
-      sizzSrc.connect(sizzBpf); sizzBpf.connect(sizzG); sizzG.connect(ctx.destination);
-      sizzSrc.start(t);
-
-      // Ringing tone after discharge
-      const ring = ctx.createOscillator(); const ringG = ctx.createGain();
-      ring.connect(ringG); ringG.connect(ctx.destination);
-      ring.type = 'sine';
-      ring.frequency.setValueAtTime(1200, t + 0.02);
-      ring.frequency.exponentialRampToValueAtTime(400, t + 0.45);
-      ringG.gain.setValueAtTime(0.18, t + 0.02);
-      ringG.gain.exponentialRampToValueAtTime(0.001, t + 0.50);
-      ring.start(t + 0.02); ring.stop(t + 0.52);
-    });
-  }
-
-  // ─ BODY IMPACT — generic hit received ─
-  function impact() {
-    play(ctx => {
-      const t = ctx.currentTime;
-
-      // Thump
-      const osc = ctx.createOscillator(); const g = ctx.createGain();
-      osc.connect(g); g.connect(ctx.destination);
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(180, t);
-      osc.frequency.exponentialRampToValueAtTime(42, t + 0.13);
-      g.gain.setValueAtTime(0.55, t);
-      g.gain.exponentialRampToValueAtTime(0.001, t + 0.17);
-      osc.start(t); osc.stop(t + 0.19);
-
-      // Noise crack
-      const nSrc = ctx.createBufferSource();
-      nSrc.buffer = makeNoise(ctx, 0.06, p => Math.pow(1 - p, 1.8));
-      const nLpf = ctx.createBiquadFilter(); nLpf.type = 'lowpass'; nLpf.frequency.value = 2400;
-      const nG = ctx.createGain(); nG.gain.setValueAtTime(0.35, t);
-      nSrc.connect(nLpf); nLpf.connect(nG); nG.connect(ctx.destination);
-      nSrc.start(t);
-    });
-  }
-
-  // ─ HURT GRUNT — player/enemy hurt vocalization ─
-  function hurtGrunt() {
-    play(ctx => {
-      const t = ctx.currentTime;
-
-      // Short pitched grunt — glottal noise through resonant filter
-      const nSrc = ctx.createBufferSource();
-      nSrc.buffer = makeNoise(ctx, 0.18, p => (p < 0.05 ? p / 0.05 : Math.pow(1 - p, 1.2)));
-      const formant1 = ctx.createBiquadFilter(); formant1.type = 'bandpass'; formant1.frequency.value = 420; formant1.Q.value = 6;
-      const formant2 = ctx.createBiquadFilter(); formant2.type = 'bandpass'; formant2.frequency.value = 1100; formant2.Q.value = 4;
-      const hG = ctx.createGain(); hG.gain.setValueAtTime(0.55, t);
-      nSrc.connect(formant1); formant1.connect(hG); hG.connect(ctx.destination);
-      nSrc.connect(formant2); formant2.connect(hG);
-      nSrc.start(t);
-
-      // Exhale hiss
-      const exSrc = ctx.createBufferSource();
-      exSrc.buffer = makeNoise(ctx, 0.12, p => Math.pow(1 - p, 1.5));
-      const exHpf = ctx.createBiquadFilter(); exHpf.type = 'highpass'; exHpf.frequency.value = 2000;
-      const exG = ctx.createGain(); exG.gain.setValueAtTime(0.18, t + 0.03);
-      exSrc.connect(exHpf); exHpf.connect(exG); exG.connect(ctx.destination);
-      exSrc.start(t + 0.03);
-    });
-  }
-
-  // ─ DEATH SOUND — heavy collapse + groan ─
-  function deathSound() {
-    play(ctx => {
-      const t = ctx.currentTime;
-
-      // Deep collapse thud
-      const thump = ctx.createOscillator(); const thumpG = ctx.createGain();
-      thump.connect(thumpG); thumpG.connect(ctx.destination);
-      thump.type = 'sine';
-      thump.frequency.setValueAtTime(140, t + 0.05);
-      thump.frequency.exponentialRampToValueAtTime(28, t + 0.30);
-      thumpG.gain.setValueAtTime(0.80, t + 0.05);
-      thumpG.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
-      thump.start(t + 0.05); thump.stop(t + 0.38);
-
-      // Groan — long descending vocal
-      const groan = ctx.createOscillator(); const groanG = ctx.createGain();
-      groan.connect(groanG); groanG.connect(ctx.destination);
-      groan.type = 'sawtooth';
-      groan.frequency.setValueAtTime(180, t);
-      groan.frequency.exponentialRampToValueAtTime(85, t + 0.45);
-      groanG.gain.setValueAtTime(0, t);
-      groanG.gain.linearRampToValueAtTime(0.22, t + 0.06);
-      groanG.gain.exponentialRampToValueAtTime(0.001, t + 0.55);
-      groan.start(t); groan.stop(t + 0.58);
-
-      // Body slam noise
-      const bSrc = ctx.createBufferSource();
-      bSrc.buffer = makeNoise(ctx, 0.18, p => Math.pow(1 - p, 1.2));
-      const bLpf = ctx.createBiquadFilter(); bLpf.type = 'lowpass'; bLpf.frequency.value = 700;
-      const bG = ctx.createGain(); bG.gain.setValueAtTime(0.60, t + 0.04);
-      bSrc.connect(bLpf); bLpf.connect(bG); bG.connect(ctx.destination);
-      bSrc.start(t + 0.04);
-
-      // Trailing ominous low drone
-      const drone = ctx.createOscillator(); const droneG = ctx.createGain();
-      drone.connect(droneG); droneG.connect(ctx.destination);
-      drone.type = 'sine';
-      drone.frequency.setValueAtTime(55, t + 0.2);
-      droneG.gain.setValueAtTime(0.18, t + 0.2);
-      droneG.gain.exponentialRampToValueAtTime(0.001, t + 1.20);
-      drone.start(t + 0.2); drone.stop(t + 1.25);
-    });
-  }
-
-  // ─ JUMP — quick upward spring ─
-  function jump() {
-    play(ctx => {
-      const t = ctx.currentTime;
-      const osc = ctx.createOscillator(); const g = ctx.createGain();
-      osc.connect(g); g.connect(ctx.destination);
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(280, t);
-      osc.frequency.exponentialRampToValueAtTime(480, t + 0.10);
-      osc.frequency.exponentialRampToValueAtTime(320, t + 0.20);
-      g.gain.setValueAtTime(0.18, t);
-      g.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
-      osc.start(t); osc.stop(t + 0.24);
-
-      // Exertion puff — short breath
-      const pSrc = ctx.createBufferSource();
-      pSrc.buffer = makeNoise(ctx, 0.08, p => Math.pow(1 - p, 2.5));
-      const pLpf = ctx.createBiquadFilter(); pLpf.type = 'lowpass'; pLpf.frequency.value = 1800;
-      const pG = ctx.createGain(); pG.gain.setValueAtTime(0.12, t);
-      pSrc.connect(pLpf); pLpf.connect(pG); pG.connect(ctx.destination);
-      pSrc.start(t);
-    });
-  }
-
-  // ─ LAND — thud on landing ─
-  function land() {
-    play(ctx => {
-      const t = ctx.currentTime;
-      const osc = ctx.createOscillator(); const g = ctx.createGain();
-      osc.connect(g); g.connect(ctx.destination);
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(200, t);
-      osc.frequency.exponentialRampToValueAtTime(42, t + 0.10);
-      g.gain.setValueAtTime(0.50, t);
-      g.gain.exponentialRampToValueAtTime(0.001, t + 0.13);
-      osc.start(t); osc.stop(t + 0.15);
-
-      const dSrc = ctx.createBufferSource();
-      dSrc.buffer = makeNoise(ctx, 0.07, p => Math.pow(1 - p, 3));
-      const dLpf = ctx.createBiquadFilter(); dLpf.type = 'lowpass'; dLpf.frequency.value = 1000;
-      const dG = ctx.createGain(); dG.gain.setValueAtTime(0.30, t);
-      dSrc.connect(dLpf); dLpf.connect(dG); dG.connect(ctx.destination);
-      dSrc.start(t);
-    });
-  }
-
-  // ─ POWERUP (kept for bullet-fire fallback/other use) ─
-  function powerUp() {
-    play(ctx => {
-      const t = ctx.currentTime;
-      [110, 165, 220, 330].forEach((freq, i) => {
-        const osc = ctx.createOscillator(); const g = ctx.createGain();
-        osc.connect(g); g.connect(ctx.destination);
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(freq, t + i * 0.05);
-        osc.frequency.exponentialRampToValueAtTime(freq * 1.8, t + 0.55);
-        g.gain.setValueAtTime(0, t + i * 0.05);
-        g.gain.linearRampToValueAtTime(0.10, t + i * 0.05 + 0.1);
-        g.gain.exponentialRampToValueAtTime(0.001, t + 0.65);
-        osc.start(t + i * 0.05); osc.stop(t + 0.7);
-      });
+      src.start(ctx.currentTime);
     });
   }
 
   function setMuted(val) { sfxMuted = val; }
 
-  return {
-    // UI
-    hover, select, confirm, nav, back, boot, chime, error, victory, rumble, powerUp,
-    // Combat — weapons
-    gunshot, gunEmpty, gunReload,
-    swordSlash, swordFast, swordImpact,
-    fireballCast, flameJet,
-    lightningCharge, lightningStrike,
-    // Combat — body
-    impact, hurtGrunt, deathSound,
-    // Movement
-    jump, land,
-    setMuted,
-  };
+  return { hover, select, confirm, nav, back, boot, powerUp, impact, chime, error, victory, rumble, setMuted };
 })();
 
 // ═══════════════════════════════════════════════
@@ -3545,7 +3100,120 @@ class GameScene extends Phaser.Scene {
     if (!overlay) return;
     overlay.classList.add('active');
 
-    // ── Helper: bind a DOM button with multi-touch support ──
+    // ── Virtual Joystick (movement + jump merged) ──────
+    const base  = document.getElementById('joystick-base');
+    const thumb = document.getElementById('joystick-thumb');
+
+    const DEAD_ZONE   = 0.25;  // normalised radius — ignore tiny drift
+    const MAX_TRAVEL  = 32;    // max pixel displacement of thumb from centre
+    // Jump fires when stick is pushed upward past this normalised threshold
+    const JUMP_THRESH = 0.45;
+    // Must drop back below this before jump can fire again (prevent hold-up spam)
+    const JUMP_REARM  = 0.20;
+
+    let joystickActive = false;
+    let joystickId     = null;
+    let baseRect       = null;
+    let jumpArmed      = true;
+
+    const getBaseCenter = () => {
+      baseRect = base.getBoundingClientRect();
+      return {
+        cx: baseRect.left + baseRect.width  / 2,
+        cy: baseRect.top  + baseRect.height / 2,
+        r:  baseRect.width / 2,
+      };
+    };
+
+    const updateThumb = (clientX, clientY) => {
+      const { cx, cy, r } = getBaseCenter();
+      let dx = clientX - cx;
+      let dy = clientY - cy;
+      const dist  = Math.sqrt(dx * dx + dy * dy);
+      const normX = dx / r;        // -1 (left) … +1 (right)
+      const normY = dy / r;        // -1 (up)   … +1 (down)
+
+      // Clamp thumb visual travel to MAX_TRAVEL px
+      if (dist > MAX_TRAVEL) {
+        const s = MAX_TRAVEL / dist;
+        dx *= s; dy *= s;
+      }
+      thumb.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+
+      // ── Horizontal movement ──
+      this._mobileLeft  = normX < -DEAD_ZONE;
+      this._mobileRight = normX >  DEAD_ZONE;
+
+      // ── Jump: upward push past threshold, fires once per gesture ──
+      const upNorm = -normY;  // positive when pushed up
+      if (upNorm >= JUMP_THRESH && jumpArmed) {
+        this._mobileJump = true;
+        jumpArmed = false;
+        // Brief visual feedback on the arc indicator
+        base.classList.add('jumping');
+        setTimeout(() => base.classList.remove('jumping'), 200);
+      }
+      // Re-arm when stick returns near vertical centre
+      if (upNorm < JUMP_REARM) jumpArmed = true;
+    };
+
+    const resetThumb = () => {
+      thumb.style.transform = 'translate(-50%, -50%)';
+      thumb.classList.remove('active');
+      base.classList.remove('jumping');
+      this._mobileLeft  = false;
+      this._mobileRight = false;
+      joystickActive = false;
+      joystickId     = null;
+      jumpArmed      = true;
+    };
+
+    // Touch events on the base
+    base.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      if (joystickActive) return;
+      const touch = e.changedTouches[0];
+      joystickActive = true;
+      joystickId     = touch.identifier;
+      thumb.classList.add('active');
+      updateThumb(touch.clientX, touch.clientY);
+    }, { passive: false });
+
+    base.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+      for (const t of e.changedTouches) {
+        if (t.identifier === joystickId) { updateThumb(t.clientX, t.clientY); return; }
+      }
+    }, { passive: false });
+
+    base.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      for (const t of e.changedTouches) {
+        if (t.identifier === joystickId) { resetThumb(); return; }
+      }
+    }, { passive: false });
+
+    base.addEventListener('touchcancel', (e) => {
+      e.preventDefault(); resetThumb();
+    }, { passive: false });
+
+    // Mouse fallback for desktop testing
+    let mouseDragging = false;
+    base.addEventListener('mousedown', (e) => {
+      mouseDragging = true;
+      thumb.classList.add('active');
+      updateThumb(e.clientX, e.clientY);
+    });
+    window.addEventListener('mousemove', (e) => {
+      if (mouseDragging) updateThumb(e.clientX, e.clientY);
+    });
+    window.addEventListener('mouseup', () => {
+      if (!mouseDragging) return;
+      mouseDragging = false;
+      resetThumb();
+    });
+
+    // ── Action buttons ─────────────────────────────────
     const bindBtn = (id, onDown, onUp) => {
       const el = document.getElementById(id);
       if (!el) return;
@@ -3562,27 +3230,11 @@ class GameScene extends Phaser.Scene {
       el.addEventListener('touchstart', down,  { passive: false });
       el.addEventListener('touchend',   up,    { passive: false });
       el.addEventListener('touchcancel', up,   { passive: false });
-      // Mouse fallback for desktop testing
       el.addEventListener('mousedown',  down);
       el.addEventListener('mouseup',    up);
       el.addEventListener('mouseleave', up);
     };
 
-    // D-Pad
-    bindBtn('dpad-left',
-      () => { this._mobileLeft  = true;  },
-      () => { this._mobileLeft  = false; }
-    );
-    bindBtn('dpad-right',
-      () => { this._mobileRight = true;  },
-      () => { this._mobileRight = false; }
-    );
-    bindBtn('dpad-jump',
-      () => { this._mobileJump  = true;  },
-      () => { /* jump is consumed in update */ }
-    );
-
-    // Action buttons
     bindBtn('btn-atk1',  () => { this._mobileAtk1  = true; }, null);
     bindBtn('btn-atk2',  () => { this._mobileAtk2  = true; }, null);
     bindBtn('btn-shoot', () => { this._mobileShoot = true; }, null);
@@ -3591,8 +3243,8 @@ class GameScene extends Phaser.Scene {
     this.game.canvas.style.touchAction = 'none';
 
     // Cleanup when scene shuts down
-    this.events.once('shutdown', () => { overlay.classList.remove('active'); });
-    this.events.once('destroy',  () => { overlay.classList.remove('active'); });
+    this.events.once('shutdown', () => { overlay.classList.remove('active'); resetThumb(); });
+    this.events.once('destroy',  () => { overlay.classList.remove('active'); resetThumb(); });
   }
 
   // ─────────────────────────────────────────────
