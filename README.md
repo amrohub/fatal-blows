@@ -1,5 +1,7 @@
 <div align="center">
 
+</div><img width="2400" height="1080" alt="Fatal Blows Bannergithub posters5" src="https://github.com/user-attachments/assets/b0283cfe-f6ae-4a8f-8546-f6a769e566b8" />
+
 ```
  ███████╗ █████╗ ████████╗ █████╗ ██╗
  ██╔════╝██╔══██╗╚══██╔══╝██╔══██╗██║
@@ -23,6 +25,8 @@
 ![Status](https://img.shields.io/badge/STATUS-IN%20DEVELOPMENT-708d81?style=for-the-badge)
 ![Language](https://img.shields.io/badge/LANGUAGE-JAVASCRIPT-001427?style=for-the-badge)
 
+### 🎮 &nbsp; [**PLAY NOW → fatal-blows.vercel.app**](https://fatal-blows.vercel.app/) &nbsp; 🎮
+
 </div>
 
 ---
@@ -32,6 +36,8 @@
 **Fatal Blows** is a browser-based 2D fighting game with arcade atmosphere, pixel-art fighters, and procedurally synthesized audio — all running in vanilla JavaScript powered by **Phaser 3**.
 
 No downloads. No installs. Open the browser, pick your fighter, and enter the arena.
+
+> **▶ Play it live:** [https://fatal-blows.vercel.app/](https://fatal-blows.vercel.app/)
 
 ---
 
@@ -155,10 +161,17 @@ fatal-blows/
 | Fonts | [Boldonse](https://fonts.google.com/specimen/Boldonse) via Google Fonts |
 | Icons | [Font Awesome 6](https://fontawesome.com) |
 | Renderer | WebGL / Canvas (Phaser auto-selects) |
+| Deployment | [Vercel](https://vercel.com) |
 
 ---
 
 ## ◈ &nbsp; GETTING STARTED
+
+### ▶ Play Online
+
+No setup needed — just open your browser and fight:
+
+**[https://fatal-blows.vercel.app/](https://fatal-blows.vercel.app/)**
 
 ### Run locally
 
@@ -233,10 +246,21 @@ This project is licensed under the [MIT License](LICENSE).
 
 ---
 
+## ◈ &nbsp; GAMEPLAY
+
+<div align="center">
+
+![Gameplay](assets/gameplay.gif)
+
+</div>
+
+---
+
 <div align="center">
 
 **Built with ⚔ and the Web Audio API**
 
-*v0.1.0 · Phaser 3*
+*v0.1.0 · Phaser 3 · [Play Now](https://fatal-blows.vercel.app/)*
 
-</div>
+
+
