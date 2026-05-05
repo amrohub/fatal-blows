@@ -3100,63 +3100,72 @@ class GameScene extends Phaser.Scene {
     if (!overlay) return;
     overlay.classList.add('active');
 
-    // ── Virtual Joystick ────────────────────────────────
+    // ── Virtual Joystick (movement + jump merged) ──────
     const base  = document.getElementById('joystick-base');
     const thumb = document.getElementById('joystick-thumb');
 
-    const DEAD_ZONE  = 0.25;   // normalised radius fraction to ignore
-    const MAX_TRAVEL = 32;     // max pixel displacement of thumb from centre
+    const DEAD_ZONE   = 0.25;  // normalised radius — ignore tiny drift
+    const MAX_TRAVEL  = 32;    // max pixel displacement of thumb from centre
+    // Jump fires when stick is pushed upward past this normalised threshold
+    const JUMP_THRESH = 0.45;
+    // Must drop back below this before jump can fire again (prevent hold-up spam)
+    const JUMP_REARM  = 0.20;
 
     let joystickActive = false;
-    let joystickId     = null;  // tracking touch identifier
+    let joystickId     = null;
     let baseRect       = null;
+    let jumpArmed      = true;
 
     const getBaseCenter = () => {
       baseRect = base.getBoundingClientRect();
       return {
         cx: baseRect.left + baseRect.width  / 2,
         cy: baseRect.top  + baseRect.height / 2,
+        r:  baseRect.width / 2,
       };
     };
 
     const updateThumb = (clientX, clientY) => {
-      const { cx, cy } = getBaseCenter();
+      const { cx, cy, r } = getBaseCenter();
       let dx = clientX - cx;
       let dy = clientY - cy;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      const norm = dist / (baseRect.width / 2);   // 0..1+ relative to base radius
+      const dist  = Math.sqrt(dx * dx + dy * dy);
+      const normX = dx / r;        // -1 (left) … +1 (right)
+      const normY = dy / r;        // -1 (up)   … +1 (down)
 
-      // Clamp thumb travel
+      // Clamp thumb visual travel to MAX_TRAVEL px
       if (dist > MAX_TRAVEL) {
-        dx = (dx / dist) * MAX_TRAVEL;
-        dy = (dy / dist) * MAX_TRAVEL;
+        const s = MAX_TRAVEL / dist;
+        dx *= s; dy *= s;
       }
-
-      // Smooth CSS movement (no transition so it stays instant)
       thumb.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
 
-      // Derive movement flags from angle + dead zone
-      if (norm < DEAD_ZONE) {
-        this._mobileLeft  = false;
-        this._mobileRight = false;
-      } else {
-        const angle = Math.atan2(dy, dx); // radians, 0=right, ±π=left
-        this._mobileRight = angle > -Math.PI * 0.65 && angle < Math.PI * 0.65;
-        this._mobileLeft  = angle < -Math.PI * 0.35 || angle > Math.PI * 0.35
-                            ? !this._mobileRight : false;
-        // Cleaner split: right half → right, left half → left
-        this._mobileLeft  = dx < 0 && norm >= DEAD_ZONE;
-        this._mobileRight = dx > 0 && norm >= DEAD_ZONE;
+      // ── Horizontal movement ──
+      this._mobileLeft  = normX < -DEAD_ZONE;
+      this._mobileRight = normX >  DEAD_ZONE;
+
+      // ── Jump: upward push past threshold, fires once per gesture ──
+      const upNorm = -normY;  // positive when pushed up
+      if (upNorm >= JUMP_THRESH && jumpArmed) {
+        this._mobileJump = true;
+        jumpArmed = false;
+        // Brief visual feedback on the arc indicator
+        base.classList.add('jumping');
+        setTimeout(() => base.classList.remove('jumping'), 200);
       }
+      // Re-arm when stick returns near vertical centre
+      if (upNorm < JUMP_REARM) jumpArmed = true;
     };
 
     const resetThumb = () => {
       thumb.style.transform = 'translate(-50%, -50%)';
       thumb.classList.remove('active');
+      base.classList.remove('jumping');
       this._mobileLeft  = false;
       this._mobileRight = false;
       joystickActive = false;
       joystickId     = null;
+      jumpArmed      = true;
     };
 
     // Touch events on the base
@@ -3173,10 +3182,7 @@ class GameScene extends Phaser.Scene {
     base.addEventListener('touchmove', (e) => {
       e.preventDefault();
       for (const t of e.changedTouches) {
-        if (t.identifier === joystickId) {
-          updateThumb(t.clientX, t.clientY);
-          return;
-        }
+        if (t.identifier === joystickId) { updateThumb(t.clientX, t.clientY); return; }
       }
     }, { passive: false });
 
@@ -3188,8 +3194,7 @@ class GameScene extends Phaser.Scene {
     }, { passive: false });
 
     base.addEventListener('touchcancel', (e) => {
-      e.preventDefault();
-      resetThumb();
+      e.preventDefault(); resetThumb();
     }, { passive: false });
 
     // Mouse fallback for desktop testing
@@ -3200,36 +3205,13 @@ class GameScene extends Phaser.Scene {
       updateThumb(e.clientX, e.clientY);
     });
     window.addEventListener('mousemove', (e) => {
-      if (!mouseDragging) return;
-      updateThumb(e.clientX, e.clientY);
+      if (mouseDragging) updateThumb(e.clientX, e.clientY);
     });
     window.addEventListener('mouseup', () => {
       if (!mouseDragging) return;
       mouseDragging = false;
       resetThumb();
     });
-
-    // ── Jump button ────────────────────────────────────
-    const jumpBtn = document.getElementById('jump-btn');
-    const bindJump = (el) => {
-      const down = (e) => {
-        e.preventDefault();
-        el.classList.add('pressed');
-        this._mobileJump = true;
-      };
-      const up = (e) => {
-        e.preventDefault();
-        el.classList.remove('pressed');
-        // _mobileJump is consumed per frame; don't reset here
-      };
-      el.addEventListener('touchstart',  down,  { passive: false });
-      el.addEventListener('touchend',    up,    { passive: false });
-      el.addEventListener('touchcancel', up,    { passive: false });
-      el.addEventListener('mousedown',   down);
-      el.addEventListener('mouseup',     up);
-      el.addEventListener('mouseleave',  up);
-    };
-    if (jumpBtn) bindJump(jumpBtn);
 
     // ── Action buttons ─────────────────────────────────
     const bindBtn = (id, onDown, onUp) => {
