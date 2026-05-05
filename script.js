@@ -1,6 +1,8 @@
 // ═══════════════════════════════════════════════
 //  BOOT LOADING BAR ANIMATION
 // ═══════════════════════════════════════════════
+// NOTE: this runs immediately — SFX is referenced by name but defined later.
+// We wrap calls safely so they no-op if SFX isn't ready yet.
 (function() {
   const bar    = document.getElementById('boot-bar');
   const veil   = document.getElementById('boot-veil');
@@ -12,6 +14,7 @@
     'CHARGING FIGHTERS...',
     'READY.',
   ];
+  const safeSFX = (fn) => { try { if (typeof SFX !== 'undefined') fn(); } catch(e) {} };
   let pct = 0, stepIdx = 0;
   const iv = setInterval(() => {
     pct += Math.random() * 12 + 4;
@@ -21,11 +24,11 @@
     if (newStep !== stepIdx) {
       stepIdx = newStep;
       status.textContent = steps[stepIdx];
-      SFX.chime();
+      safeSFX(() => SFX.chime());
     }
     if (pct >= 100) {
       status.textContent = steps[steps.length - 1];
-      SFX.boot();
+      safeSFX(() => SFX.boot());
       setTimeout(() => veil.classList.add('fade-out'), 280);
       setTimeout(() => veil.remove(), 1100);
     }
@@ -3092,7 +3095,7 @@ class GameScene extends Phaser.Scene {
     const W = this.scale.width;
     // Show mobile controls on touch devices OR small screens
     const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
-    const isSmallScreen = W < 900;
+    const isSmallScreen = W < 1100;
     if (!isTouchDevice && !isSmallScreen) return;
 
     // Show the HTML overlay
@@ -3100,23 +3103,31 @@ class GameScene extends Phaser.Scene {
     if (!overlay) return;
     overlay.classList.add('active');
 
-    // ── Helper: bind a DOM button with multi-touch support ──
+    // ── Multi-touch tracking: map touchIdentifier → button element ──
+    const activeTouches = new Map();
+
+    // ── Helper: bind a DOM button with proper multi-touch support ──
     const bindBtn = (id, onDown, onUp) => {
       const el = document.getElementById(id);
       if (!el) return;
+
       const down = (e) => {
         e.preventDefault();
+        e.stopPropagation();
         el.classList.add('pressed');
         onDown();
       };
       const up = (e) => {
         e.preventDefault();
+        e.stopPropagation();
         el.classList.remove('pressed');
         if (onUp) onUp();
       };
-      el.addEventListener('touchstart', down,  { passive: false });
-      el.addEventListener('touchend',   up,    { passive: false });
-      el.addEventListener('touchcancel', up,   { passive: false });
+
+      // Touch events — use passive:false so we can preventDefault
+      el.addEventListener('touchstart', down,   { passive: false, capture: true });
+      el.addEventListener('touchend',   up,     { passive: false, capture: true });
+      el.addEventListener('touchcancel', up,    { passive: false, capture: true });
       // Mouse fallback for desktop testing
       el.addEventListener('mousedown',  down);
       el.addEventListener('mouseup',    up);
@@ -3142,12 +3153,28 @@ class GameScene extends Phaser.Scene {
     bindBtn('btn-atk2',  () => { this._mobileAtk2  = true; }, null);
     bindBtn('btn-shoot', () => { this._mobileShoot = true; }, null);
 
-    // Prevent default scrolling on canvas
+    // Prevent default scrolling / zooming on canvas
     this.game.canvas.style.touchAction = 'none';
+    document.body.style.touchAction = 'none';
+
+    // Handle screen orientation changes
+    const onResize = () => {
+      // Reset any stuck buttons on resize/orientation change
+      this._mobileLeft = false;
+      this._mobileRight = false;
+    };
+    window.addEventListener('resize', onResize, { passive: true });
+    window.addEventListener('orientationchange', onResize, { passive: true });
 
     // Cleanup when scene shuts down
-    this.events.once('shutdown', () => { overlay.classList.remove('active'); });
-    this.events.once('destroy',  () => { overlay.classList.remove('active'); });
+    this.events.once('shutdown', () => {
+      overlay.classList.remove('active');
+      window.removeEventListener('resize', onResize);
+      window.removeEventListener('orientationchange', onResize);
+    });
+    this.events.once('destroy', () => {
+      overlay.classList.remove('active');
+    });
   }
 
   // ─────────────────────────────────────────────
@@ -4319,6 +4346,7 @@ const _phaserGame = new Phaser.Game({
     autoCenter: Phaser.Scale.CENTER_BOTH,
     width: window.innerWidth,
     height: window.innerHeight,
+    expandParent: true,
   },
   physics: {
     default: 'arcade',
@@ -4328,7 +4356,42 @@ const _phaserGame = new Phaser.Game({
     },
   },
   parent: document.body,
+  dom: { createContainer: false },
 });
+
+// ═══════════════════════════════════════════════
+//  MOBILE FULLSCREEN — keep canvas filling viewport on resize/orientation
+// ═══════════════════════════════════════════════
+(function() {
+  function _forceResize() {
+    // Give browser time to settle the new viewport dimensions
+    setTimeout(() => {
+      const W = window.innerWidth;
+      const H = window.innerHeight;
+      // Force Phaser to acknowledge the new size
+      if (_phaserGame && _phaserGame.scale) {
+        _phaserGame.scale.resize(W, H);
+        _phaserGame.scale.refresh();
+      }
+      // Ensure canvas fills screen
+      const cvs = document.querySelector('canvas');
+      if (cvs) {
+        cvs.style.width  = W + 'px';
+        cvs.style.height = H + 'px';
+        cvs.style.left   = '0px';
+        cvs.style.top    = '0px';
+      }
+    }, 120);
+  }
+  window.addEventListener('resize', _forceResize, { passive: true });
+  window.addEventListener('orientationchange', () => {
+    // Extra delay for orientation — iOS needs ~300ms
+    setTimeout(_forceResize, 300);
+  }, { passive: true });
+
+  // Prevent iOS bounce / scroll
+  document.addEventListener('touchmove', (e) => { e.preventDefault(); }, { passive: false });
+})();
 
 // ═══════════════════════════════════════════════
 //  FIGHT SCENE UI — show pause btn, hide gear btn
