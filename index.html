@@ -2,23 +2,11 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="theme-color" content="#001427" />
   <title>FATAL BLOWS</title>
-  <style>
-    /* Critical early reset — prevents any flash of unstyled content */
-    html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #001427; }
-    body { position: fixed; top: 0; left: 0; width: 100%; height: 100%; }
-    canvas { display: block; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; touch-action: none; }
-    /* iOS: use dvh for true dynamic viewport height (accounts for browser chrome) */
-    @supports (height: 100dvh) {
-      canvas { height: 100dvh; width: 100dvw; }
-      body { height: 100dvh; }
-    }
-  </style>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='%23001427'/><text x='4' y='26' font-size='24'>⚔</text></svg>">
   <link href="https://fonts.googleapis.com/css2?family=Boldonse&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
@@ -197,10 +185,16 @@
 
 <!-- ── Mobile On-Screen Controls ── -->
 <div id="mobile-controls">
-  <div id="dpad-zone">
-    <div class="dpad-btn" id="dpad-jump">JUMP</div>
-    <div class="dpad-btn" id="dpad-left">◄</div>
-    <div class="dpad-btn" id="dpad-right">►</div>
+  <div id="joystick-zone">
+    <div id="joystick-base">
+      <div id="joystick-ring"></div>
+      <div id="joystick-thumb">
+        <div id="joystick-thumb-inner"></div>
+      </div>
+    </div>
+    <div id="jump-btn">
+      <i class="fa-solid fa-chevron-up"></i>
+    </div>
   </div>
   <div id="action-zone">
     <div class="action-btn" id="btn-shoot">
