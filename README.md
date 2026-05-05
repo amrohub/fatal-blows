@@ -248,11 +248,8 @@ This project is licensed under the [MIT License](LICENSE).
 
 ## ◈ &nbsp; GAMEPLAY
 
-<div align="center">
+<img width="811" height="365" alt="fomxsxw3pgp8ubev90n1" src="https://github.com/user-attachments/assets/bf07e79c-b364-4273-a7b5-d8c98a079b1c" />
 
-![Gameplay](assets/gameplay.gif)
-
-</div>
 
 ---
 
