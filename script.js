@@ -1,8 +1,6 @@
 // ═══════════════════════════════════════════════
 //  BOOT LOADING BAR ANIMATION
 // ═══════════════════════════════════════════════
-// NOTE: this runs immediately — SFX is referenced by name but defined later.
-// We wrap calls safely so they no-op if SFX isn't ready yet.
 (function() {
   const bar    = document.getElementById('boot-bar');
   const veil   = document.getElementById('boot-veil');
@@ -14,7 +12,6 @@
     'CHARGING FIGHTERS...',
     'READY.',
   ];
-  const safeSFX = (fn) => { try { if (typeof SFX !== 'undefined') fn(); } catch(e) {} };
   let pct = 0, stepIdx = 0;
   const iv = setInterval(() => {
     pct += Math.random() * 12 + 4;
@@ -24,11 +21,11 @@
     if (newStep !== stepIdx) {
       stepIdx = newStep;
       status.textContent = steps[stepIdx];
-      safeSFX(() => SFX.chime());
+      SFX.chime();
     }
     if (pct >= 100) {
       status.textContent = steps[steps.length - 1];
-      safeSFX(() => SFX.boot());
+      SFX.boot();
       setTimeout(() => veil.classList.add('fade-out'), 280);
       setTimeout(() => veil.remove(), 1100);
     }
@@ -3095,7 +3092,7 @@ class GameScene extends Phaser.Scene {
     const W = this.scale.width;
     // Show mobile controls on touch devices OR small screens
     const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
-    const isSmallScreen = W < 1100;
+    const isSmallScreen = W < 900;
     if (!isTouchDevice && !isSmallScreen) return;
 
     // Show the HTML overlay
@@ -3103,78 +3100,169 @@ class GameScene extends Phaser.Scene {
     if (!overlay) return;
     overlay.classList.add('active');
 
-    // ── Multi-touch tracking: map touchIdentifier → button element ──
-    const activeTouches = new Map();
+    // ── Virtual Joystick ────────────────────────────────
+    const base  = document.getElementById('joystick-base');
+    const thumb = document.getElementById('joystick-thumb');
 
-    // ── Helper: bind a DOM button with proper multi-touch support ──
+    const DEAD_ZONE  = 0.25;   // normalised radius fraction to ignore
+    const MAX_TRAVEL = 32;     // max pixel displacement of thumb from centre
+
+    let joystickActive = false;
+    let joystickId     = null;  // tracking touch identifier
+    let baseRect       = null;
+
+    const getBaseCenter = () => {
+      baseRect = base.getBoundingClientRect();
+      return {
+        cx: baseRect.left + baseRect.width  / 2,
+        cy: baseRect.top  + baseRect.height / 2,
+      };
+    };
+
+    const updateThumb = (clientX, clientY) => {
+      const { cx, cy } = getBaseCenter();
+      let dx = clientX - cx;
+      let dy = clientY - cy;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const norm = dist / (baseRect.width / 2);   // 0..1+ relative to base radius
+
+      // Clamp thumb travel
+      if (dist > MAX_TRAVEL) {
+        dx = (dx / dist) * MAX_TRAVEL;
+        dy = (dy / dist) * MAX_TRAVEL;
+      }
+
+      // Smooth CSS movement (no transition so it stays instant)
+      thumb.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+
+      // Derive movement flags from angle + dead zone
+      if (norm < DEAD_ZONE) {
+        this._mobileLeft  = false;
+        this._mobileRight = false;
+      } else {
+        const angle = Math.atan2(dy, dx); // radians, 0=right, ±π=left
+        this._mobileRight = angle > -Math.PI * 0.65 && angle < Math.PI * 0.65;
+        this._mobileLeft  = angle < -Math.PI * 0.35 || angle > Math.PI * 0.35
+                            ? !this._mobileRight : false;
+        // Cleaner split: right half → right, left half → left
+        this._mobileLeft  = dx < 0 && norm >= DEAD_ZONE;
+        this._mobileRight = dx > 0 && norm >= DEAD_ZONE;
+      }
+    };
+
+    const resetThumb = () => {
+      thumb.style.transform = 'translate(-50%, -50%)';
+      thumb.classList.remove('active');
+      this._mobileLeft  = false;
+      this._mobileRight = false;
+      joystickActive = false;
+      joystickId     = null;
+    };
+
+    // Touch events on the base
+    base.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      if (joystickActive) return;
+      const touch = e.changedTouches[0];
+      joystickActive = true;
+      joystickId     = touch.identifier;
+      thumb.classList.add('active');
+      updateThumb(touch.clientX, touch.clientY);
+    }, { passive: false });
+
+    base.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+      for (const t of e.changedTouches) {
+        if (t.identifier === joystickId) {
+          updateThumb(t.clientX, t.clientY);
+          return;
+        }
+      }
+    }, { passive: false });
+
+    base.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      for (const t of e.changedTouches) {
+        if (t.identifier === joystickId) { resetThumb(); return; }
+      }
+    }, { passive: false });
+
+    base.addEventListener('touchcancel', (e) => {
+      e.preventDefault();
+      resetThumb();
+    }, { passive: false });
+
+    // Mouse fallback for desktop testing
+    let mouseDragging = false;
+    base.addEventListener('mousedown', (e) => {
+      mouseDragging = true;
+      thumb.classList.add('active');
+      updateThumb(e.clientX, e.clientY);
+    });
+    window.addEventListener('mousemove', (e) => {
+      if (!mouseDragging) return;
+      updateThumb(e.clientX, e.clientY);
+    });
+    window.addEventListener('mouseup', () => {
+      if (!mouseDragging) return;
+      mouseDragging = false;
+      resetThumb();
+    });
+
+    // ── Jump button ────────────────────────────────────
+    const jumpBtn = document.getElementById('jump-btn');
+    const bindJump = (el) => {
+      const down = (e) => {
+        e.preventDefault();
+        el.classList.add('pressed');
+        this._mobileJump = true;
+      };
+      const up = (e) => {
+        e.preventDefault();
+        el.classList.remove('pressed');
+        // _mobileJump is consumed per frame; don't reset here
+      };
+      el.addEventListener('touchstart',  down,  { passive: false });
+      el.addEventListener('touchend',    up,    { passive: false });
+      el.addEventListener('touchcancel', up,    { passive: false });
+      el.addEventListener('mousedown',   down);
+      el.addEventListener('mouseup',     up);
+      el.addEventListener('mouseleave',  up);
+    };
+    if (jumpBtn) bindJump(jumpBtn);
+
+    // ── Action buttons ─────────────────────────────────
     const bindBtn = (id, onDown, onUp) => {
       const el = document.getElementById(id);
       if (!el) return;
-
       const down = (e) => {
         e.preventDefault();
-        e.stopPropagation();
         el.classList.add('pressed');
         onDown();
       };
       const up = (e) => {
         e.preventDefault();
-        e.stopPropagation();
         el.classList.remove('pressed');
         if (onUp) onUp();
       };
-
-      // Touch events — use passive:false so we can preventDefault
-      el.addEventListener('touchstart', down,   { passive: false, capture: true });
-      el.addEventListener('touchend',   up,     { passive: false, capture: true });
-      el.addEventListener('touchcancel', up,    { passive: false, capture: true });
-      // Mouse fallback for desktop testing
+      el.addEventListener('touchstart', down,  { passive: false });
+      el.addEventListener('touchend',   up,    { passive: false });
+      el.addEventListener('touchcancel', up,   { passive: false });
       el.addEventListener('mousedown',  down);
       el.addEventListener('mouseup',    up);
       el.addEventListener('mouseleave', up);
     };
 
-    // D-Pad
-    bindBtn('dpad-left',
-      () => { this._mobileLeft  = true;  },
-      () => { this._mobileLeft  = false; }
-    );
-    bindBtn('dpad-right',
-      () => { this._mobileRight = true;  },
-      () => { this._mobileRight = false; }
-    );
-    bindBtn('dpad-jump',
-      () => { this._mobileJump  = true;  },
-      () => { /* jump is consumed in update */ }
-    );
-
-    // Action buttons
     bindBtn('btn-atk1',  () => { this._mobileAtk1  = true; }, null);
     bindBtn('btn-atk2',  () => { this._mobileAtk2  = true; }, null);
     bindBtn('btn-shoot', () => { this._mobileShoot = true; }, null);
 
-    // Prevent default scrolling / zooming on canvas
+    // Prevent default scrolling on canvas
     this.game.canvas.style.touchAction = 'none';
-    document.body.style.touchAction = 'none';
-
-    // Handle screen orientation changes
-    const onResize = () => {
-      // Reset any stuck buttons on resize/orientation change
-      this._mobileLeft = false;
-      this._mobileRight = false;
-    };
-    window.addEventListener('resize', onResize, { passive: true });
-    window.addEventListener('orientationchange', onResize, { passive: true });
 
     // Cleanup when scene shuts down
-    this.events.once('shutdown', () => {
-      overlay.classList.remove('active');
-      window.removeEventListener('resize', onResize);
-      window.removeEventListener('orientationchange', onResize);
-    });
-    this.events.once('destroy', () => {
-      overlay.classList.remove('active');
-    });
+    this.events.once('shutdown', () => { overlay.classList.remove('active'); resetThumb(); });
+    this.events.once('destroy',  () => { overlay.classList.remove('active'); resetThumb(); });
   }
 
   // ─────────────────────────────────────────────
@@ -4346,7 +4434,6 @@ const _phaserGame = new Phaser.Game({
     autoCenter: Phaser.Scale.CENTER_BOTH,
     width: window.innerWidth,
     height: window.innerHeight,
-    expandParent: true,
   },
   physics: {
     default: 'arcade',
@@ -4356,42 +4443,7 @@ const _phaserGame = new Phaser.Game({
     },
   },
   parent: document.body,
-  dom: { createContainer: false },
 });
-
-// ═══════════════════════════════════════════════
-//  MOBILE FULLSCREEN — keep canvas filling viewport on resize/orientation
-// ═══════════════════════════════════════════════
-(function() {
-  function _forceResize() {
-    // Give browser time to settle the new viewport dimensions
-    setTimeout(() => {
-      const W = window.innerWidth;
-      const H = window.innerHeight;
-      // Force Phaser to acknowledge the new size
-      if (_phaserGame && _phaserGame.scale) {
-        _phaserGame.scale.resize(W, H);
-        _phaserGame.scale.refresh();
-      }
-      // Ensure canvas fills screen
-      const cvs = document.querySelector('canvas');
-      if (cvs) {
-        cvs.style.width  = W + 'px';
-        cvs.style.height = H + 'px';
-        cvs.style.left   = '0px';
-        cvs.style.top    = '0px';
-      }
-    }, 120);
-  }
-  window.addEventListener('resize', _forceResize, { passive: true });
-  window.addEventListener('orientationchange', () => {
-    // Extra delay for orientation — iOS needs ~300ms
-    setTimeout(_forceResize, 300);
-  }, { passive: true });
-
-  // Prevent iOS bounce / scroll
-  document.addEventListener('touchmove', (e) => { e.preventDefault(); }, { passive: false });
-})();
 
 // ═══════════════════════════════════════════════
 //  FIGHT SCENE UI — show pause btn, hide gear btn
