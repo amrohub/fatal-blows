@@ -4628,3 +4628,65 @@ window._voiceOn  = true;
     m.querySelector('.s-voiceover-check').innerHTML = html;
   });
 })();
+
+// ═══════════════════════════════════════════════
+//  FULLSCREEN TOGGLE
+// ═══════════════════════════════════════════════
+(function () {
+  const btn = document.getElementById('fullscreen-btn');
+  if (!btn) return;
+
+  function isFullscreen() {
+    return !!(
+      document.fullscreenElement ||
+      document.webkitFullscreenElement ||
+      document.mozFullScreenElement ||
+      document.msFullscreenElement
+    );
+  }
+
+  function updateIcon() {
+    const icon = btn.querySelector('i');
+    if (!icon) return;
+    if (isFullscreen()) {
+      icon.className = 'fa-solid fa-compress';
+      btn.title = 'Exit Fullscreen';
+    } else {
+      icon.className = 'fa-solid fa-expand';
+      btn.title = 'Fullscreen';
+    }
+  }
+
+  function requestFS(el) {
+    if (el.requestFullscreen)            return el.requestFullscreen({ navigationUI: 'hide' });
+    if (el.webkitRequestFullscreen)      return el.webkitRequestFullscreen();
+    if (el.mozRequestFullScreen)         return el.mozRequestFullScreen();
+    if (el.msRequestFullscreen)          return el.msRequestFullscreen();
+  }
+
+  function exitFS() {
+    if (document.exitFullscreen)            return document.exitFullscreen();
+    if (document.webkitExitFullscreen)      return document.webkitExitFullscreen();
+    if (document.mozCancelFullScreen)       return document.mozCancelFullScreen();
+    if (document.msExitFullscreen)          return document.msExitFullscreen();
+  }
+
+  btn.addEventListener('click', () => {
+    if (isFullscreen()) {
+      exitFS();
+    } else {
+      requestFS(document.documentElement);
+    }
+  });
+
+  // Keep icon in sync with Esc key / swipe-to-dismiss
+  ['fullscreenchange', 'webkitfullscreenchange', 'mozfullscreenchange', 'MSFullscreenChange']
+    .forEach(ev => document.addEventListener(ev, updateIcon));
+
+  // On mobile: lock to landscape when entering fullscreen for the best experience
+  document.addEventListener('fullscreenchange', () => {
+    if (isFullscreen() && screen.orientation && screen.orientation.lock) {
+      screen.orientation.lock('landscape').catch(() => {});
+    }
+  });
+})();

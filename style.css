@@ -185,6 +185,59 @@
     }
     #settings-btn:active::after { opacity: 1; }
 
+    /* ── Fullscreen Button ── */
+    #fullscreen-btn {
+      position: fixed;
+      bottom: 80px; left: 20px;
+      width: 52px; height: 52px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #0d2235 0%, var(--bg) 100%);
+      border: 2px solid var(--sage);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.6), 0 0 10px rgba(112,141,129,0.2);
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; color: var(--sand);
+      z-index: 8000;
+      transition: all 0.2s cubic-bezier(0.34,1.56,0.64,1);
+      user-select: none;
+      overflow: hidden;
+    }
+    #fullscreen-btn i {
+      transition: transform 0.3s ease;
+      color: var(--sand);
+      font-size: 18px;
+    }
+    #fullscreen-btn:hover {
+      background: linear-gradient(135deg, var(--sage) 0%, #4a6b5f 100%);
+      transform: scale(1.12);
+      box-shadow: 0 6px 28px rgba(112,141,129,0.5), 0 0 20px rgba(112,141,129,0.3);
+    }
+    #fullscreen-btn:hover i { transform: scale(1.15); }
+    #fullscreen-btn:active { transform: scale(0.94); }
+    #fullscreen-btn::after {
+      content: '';
+      position: absolute; inset: 0;
+      border-radius: 12px;
+      background: rgba(112,141,129,0.18);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    #fullscreen-btn:active::after { opacity: 1; }
+    /* In fullscreen, bump both buttons up since bottom nav is gone */
+    :fullscreen #fullscreen-btn,
+    :-webkit-full-screen #fullscreen-btn,
+    :-moz-full-screen #fullscreen-btn {
+      bottom: 20px;
+    }
+    :fullscreen #settings-btn,
+    :-webkit-full-screen #settings-btn,
+    :-moz-full-screen #settings-btn {
+      bottom: 80px;
+    }
+    @media (max-width: 600px) {
+      #fullscreen-btn { width: 58px; height: 58px; font-size: 22px; }
+    }
+
     /* ══════════════════════════════════════════════
        SETTINGS OVERLAY — Enhanced glassmorphism
     ══════════════════════════════════════════════ */
