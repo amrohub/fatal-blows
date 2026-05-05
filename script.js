@@ -4432,10 +4432,12 @@ const _phaserGame = new Phaser.Game({
 // ═══════════════════════════════════════════════
 (function () {
   const gearBtn  = document.getElementById('settings-btn');
+  const fsBtn    = document.getElementById('fullscreen-btn');
   const pauseBtn = document.getElementById('pause-btn');
   setInterval(() => {
     const inFight = _phaserGame.scene.isActive('GameScene');
     gearBtn.classList.toggle('fight-hidden', inFight);
+    fsBtn.classList.toggle('fight-hidden', inFight);
     pauseBtn.classList.toggle('fight-visible', inFight);
   }, 150);
 })();
@@ -4591,6 +4593,33 @@ window._voiceOn  = true;
     const m = document.getElementById('btn-sfx');
     m.classList.toggle('muted', window._sfxMuted); m.querySelector('i').className = this.querySelector('i').className;
   });
+
+  // Fullscreen (pause modal)
+  document.getElementById('pause-btn-fullscreen').addEventListener('click', function () {
+    const isFS = !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement);
+    const icon = this.querySelector('i');
+    if (isFS) {
+      (document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen).call(document);
+      icon.className = 'fa-solid fa-expand';
+      this.title = 'Fullscreen';
+    } else {
+      const el = document.documentElement;
+      if (el.requestFullscreen)       el.requestFullscreen({ navigationUI: 'hide' });
+      else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+      else if (el.mozRequestFullScreen)    el.mozRequestFullScreen();
+      icon.className = 'fa-solid fa-compress';
+      this.title = 'Exit Fullscreen';
+    }
+    SFX.chime();
+  });
+  // Keep pause modal icon in sync with external fullscreen changes (Esc key etc.)
+  ['fullscreenchange','webkitfullscreenchange','mozfullscreenchange'].forEach(ev =>
+    document.addEventListener(ev, () => {
+      const isFS = !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement);
+      const btn  = document.getElementById('pause-btn-fullscreen');
+      if (btn) btn.querySelector('i').className = isFS ? 'fa-solid fa-compress' : 'fa-solid fa-expand';
+    })
+  );
 
   // Combat effects
   document.getElementById('pause-btn-combat').addEventListener('click', function () {

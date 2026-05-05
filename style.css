@@ -501,6 +501,7 @@
        FIGHT SCENE — hide gear btn, show pause btn
     ══════════════════════════════════════════════ */
     #settings-btn.fight-hidden { display: none !important; }
+    #fullscreen-btn.fight-hidden { display: none !important; }
 
     /* ══════════════════════════════════════════════
        PAUSE BUTTON — top-center tab, fight only
