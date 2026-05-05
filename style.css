@@ -691,7 +691,7 @@
     #mobile-controls {
       position: fixed;
       bottom: 0; left: 0; right: 0;
-      height: 190px;
+      height: 160px;
       pointer-events: none;
       z-index: 7000;
       display: none;
@@ -705,14 +705,9 @@
       position: absolute;
       left: 16px;
       bottom: max(16px, env(safe-area-inset-bottom));
-      width: 160px;
-      height: 160px;
+      width: 120px;
+      height: 120px;
       pointer-events: auto;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: flex-end;
-      gap: 10px;
     }
 
     /* Joystick base plate */
@@ -749,17 +744,46 @@
       background: rgba(191,6,3,0.35);
       border-radius: 2px;
     }
-    /* horizontal bar */
     #joystick-ring::before {
       left: 50%; top: 50%;
       width: 100%; height: 1px;
       transform: translate(-50%, -50%);
     }
-    /* vertical bar */
     #joystick-ring::after {
       left: 50%; top: 50%;
       width: 1px; height: 100%;
       transform: translate(-50%, -50%);
+    }
+
+    /* Jump arc — top segment glows when jump is triggered */
+    #joystick-jump-arc {
+      position: absolute;
+      top: 4px; left: 50%;
+      transform: translateX(-50%);
+      width: 54px; height: 26px;
+      border-radius: 54px 54px 0 0;
+      border: 2px solid rgba(244,213,141,0.18);
+      border-bottom: none;
+      pointer-events: none;
+      transition: border-color 0.12s ease, box-shadow 0.12s ease;
+    }
+    /* Upward chevron label inside the arc */
+    #joystick-jump-arc::after {
+      content: '▲';
+      position: absolute;
+      left: 50%; top: 2px;
+      transform: translateX(-50%);
+      font-size: 9px;
+      color: rgba(244,213,141,0.3);
+      letter-spacing: 0;
+      transition: color 0.12s ease;
+    }
+    #joystick-base.jumping #joystick-jump-arc {
+      border-color: rgba(244,213,141,0.85);
+      box-shadow: 0 0 10px rgba(244,213,141,0.4), inset 0 0 8px rgba(244,213,141,0.1);
+    }
+    #joystick-base.jumping #joystick-jump-arc::after {
+      color: rgba(244,213,141,0.95);
     }
 
     /* Thumb */
@@ -794,31 +818,6 @@
       top: 50%; left: 50%;
       transform: translate(-50%, -50%);
       pointer-events: none;
-    }
-
-    /* Jump button — sits above joystick */
-    #jump-btn {
-      width: 58px;
-      height: 30px;
-      border-radius: 20px;
-      background: rgba(0,20,39,0.82);
-      border: 1.5px solid rgba(244,213,141,0.5);
-      display: flex; align-items: center; justify-content: center;
-      color: var(--sand);
-      font-size: 13px;
-      box-shadow: 0 3px 10px rgba(0,0,0,0.5), 0 0 10px rgba(244,213,141,0.08);
-      cursor: pointer;
-      touch-action: none;
-      user-select: none;
-      -webkit-tap-highlight-color: transparent;
-      transition: background 0.08s, transform 0.06s, box-shadow 0.08s;
-      flex-shrink: 0;
-    }
-    #jump-btn.pressed {
-      background: rgba(244,213,141,0.2);
-      border-color: var(--sand);
-      transform: scale(0.92);
-      box-shadow: 0 2px 8px rgba(0,0,0,0.5), 0 0 16px rgba(244,213,141,0.28);
     }
 
     /* Action buttons zone (right side) */
